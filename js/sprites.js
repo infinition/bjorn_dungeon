@@ -50,19 +50,26 @@ export function createBoss(scene, x, z) {
     return boss;
 }
 
-export function createMob(scene, x, z, type = 'skeleton') {
-    // Placeholder for mob generation
-    // In future: loadSprite(`assets/sprites/${type}.png`)
-    const canvas = document.createElement('canvas');
-    canvas.width = 32; canvas.height = 32;
-    const ctx = canvas.getContext('2d');
-    ctx.fillStyle = type === 'skeleton' ? '#ddd' : '#0f0';
-    ctx.fillRect(8, 8, 16, 24);
-    const tex = new THREE.CanvasTexture(canvas);
-    tex.magFilter = THREE.NearestFilter;
+export function createMob(scene, x, z, mobData) {
+    let tex;
+    if (mobData.sprite && mobData.sprite.trim() !== '') {
+        tex = loadSprite(mobData.sprite);
+    } else {
+        // Fallback procedural generation
+        const canvas = document.createElement('canvas');
+        canvas.width = 32; canvas.height = 32;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = mobData.color || '#ddd';
+        ctx.fillRect(8, 8, 16, 24);
+        tex = new THREE.CanvasTexture(canvas);
+        tex.magFilter = THREE.NearestFilter;
+    }
 
-    const mob = createBillboard(tex, 1);
-    mob.position.set(x, 0.5, z);
+    const mob = createBillboard(tex, mobData.scale || 1);
+    mob.position.set(x, 0.5 * (mobData.scale || 1), z);
+    // Store stats on the mesh for gameplay logic
+    mob.userData = { hp: mobData.hp, damage: mobData.damage, name: mobData.name, sound: mobData.sound };
+
     scene.add(mob);
     return mob;
 }

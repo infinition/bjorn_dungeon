@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Bjork Cyberviking - Boss Room</title>
+    <title>Bjorn Cyberviking</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
 
@@ -60,10 +60,9 @@
 
         .bar-container {
             background: #111;
-            border: 1px solid #444;
-            height: 12px;
-            width: 100%;
             position: relative;
+            overflow: hidden;
+            border: 1px solid #2a4a4a;
         }
 
         .bar-fill {
@@ -71,56 +70,39 @@
             transition: width 0.2s;
         }
 
-        .text-cyan {
-            color: #4deeea;
-        }
-
-        .text-orange {
-            color: #d68c3e;
-        }
-
-        .text-dark {
+        /* Contrôles tactiles améliorés */
+        .touch-zone {
+            position: absolute;
+            bottom: 60px;
+            width: 128px;
+            height: 128px;
+            border-radius: 50%;
+            border: 2px solid rgba(77, 238, 234, 0.3);
             pointer-events: auto;
             touch-action: none;
             background: rgba(0, 0, 0, 0.2);
-            /* Légère teinte pour mieux voir la zone */
         }
 
         #stick-left {
-            left: 40px;
+            left: 20px;
         }
 
         #stick-right {
-            right: 40px;
+            right: 20px;
         }
 
         .stick-knob {
             width: 60px;
-            /* Knob plus gros pour le confort */
             height: 60px;
             background: rgba(77, 238, 234, 0.5);
             border-radius: 50%;
             position: absolute;
             top: 50%;
             left: 50%;
-            background: rgba(214, 140, 62, 0.5);
-            border: 2px solid #d68c3e;
-            border-radius: 50%;
-            pointer-events: auto;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 10px;
-            z-index: 20;
-            box-shadow: 0 0 10px rgba(214, 140, 62, 0.3);
+            transform: translate(-50%, -50%);
+            box-shadow: 0 0 10px rgba(77, 238, 234, 0.3);
         }
 
-        #shoot-btn:active {
-            background: rgba(214, 140, 62, 0.8);
-            transform: scale(0.95);
-        }
-
-        /* Minimap */
         #minimap {
             background: #000;
             border: 2px solid #2a4a4a;
@@ -217,7 +199,7 @@
 
     <!-- Start Screen -->
     <div id="start-screen">
-        <h1 class="text-4xl text-cyan mb-4">BJORK CYBERVIKING</h1>
+        <h1 class="text-4xl text-cyan mb-4">BJORN CYBERVIKING</h1>
         <p class="text-orange mb-8 text-xs">BOSS ROOM INCURSION</p>
         <div class="text-xs text-gray-400 mb-8 max-w-md leading-6">
             <p>CONTROLES:</p>
@@ -238,13 +220,13 @@
         <div class="flex justify-between items-start w-full">
             <!-- Stats Gauche -->
             <div class="w-1/3">
-                <div class="text-cyan text-sm mb-1">BJORK Cyberviking</div>
+                <div class="text-cyan text-sm mb-1">BJORN Cyberviking</div>
                 <div class="flex items-center text-xs mb-1">
-                    <span class="mr-2">Lv 7</span>
+                    <span id="level-display" class="mr-2">Lv 1</span>
                     <div class="bar-container w-24 mr-2">
-                        <div class="bar-fill bg-cyan-600" style="width: 57%;"></div>
+                        <div id="xp-bar" class="bar-fill bg-cyan-600" style="width: 0%;"></div>
                     </div>
-                    <span class="text-gray-400">XP 230/400</span>
+                    <span id="xp-text" class="text-gray-400">XP 0/100</span>
                 </div>
             </div>
 
@@ -256,12 +238,6 @@
 
             <!-- Stats Droite + Minimap -->
             <div class="w-1/3 flex flex-col items-end">
-                <div class="flex items-center w-full justify-end mb-1">
-                    <span class="text-cyan text-xs mr-2">HP</span>
-                    <div class="bar-container w-32">
-                        <div id="hp-bar" class="bar-fill bg-red-600" style="width: 100%;"></div>
-                    </div>
-                </div>
                 <div class="text-cyan text-xs mb-1 text-right w-full">Boss Room</div>
                 <canvas id="minimap" width="80" height="80" class="mt-1"></canvas>
             </div>
@@ -281,31 +257,44 @@
         <!-- Bottom Bar -->
         <div class="flex justify-between items-end w-full mt-auto">
 
-            <!-- Skills -->
-            <div class="hud-panel w-48 h-24 flex flex-col justify-between pointer-events-auto">
-                <!-- Pointer events auto pour cliquer si besoin -->
+            <!-- Skills & Player HP -->
+            <div class="hud-panel w-48 flex flex-col justify-between pointer-events-auto p-2">
+                <!-- Player HP -->
+                <div class="flex items-center w-full justify-between mb-2">
+                    <span class="text-cyan text-xs mr-2">HP</span>
+                    <div class="bar-container w-32 h-3">
+                        <div id="hp-bar" class="bar-fill bg-red-600" style="width: 100%;"></div>
+                    </div>
+                </div>
+
+                <!-- Spells -->
                 <div class="flex justify-between text-cyan text-[10px] mb-1">
                     <span>Lightning</span>
                     <span>Rune</span>
                 </div>
-                <div class="flex space-x-2">
-                    <div class="w-10 h-10 border border-cyan-800 flex items-center justify-center text-cyan bg-black">⚡
-                    </div>
-                    <div class="w-10 h-10 border border-cyan-800 flex items-center justify-center text-cyan bg-black">†
-                    </div>
-                    <div class="w-10 h-10 border border-cyan-800 flex items-center justify-center text-cyan bg-black">◇
-                    </div>
-                    <div class="w-10 h-10 border border-cyan-800 flex items-center justify-center text-cyan bg-black">F
-                    </div>
+                <div id="spell-bar" class="flex space-x-2 mb-1">
+                    <div
+                        class="w-8 h-8 border border-cyan-800 flex items-center justify-center text-cyan bg-black text-xs">
+                        ⚡</div>
+                    <div
+                        class="w-8 h-8 border border-cyan-800 flex items-center justify-center text-cyan bg-black text-xs">
+                        †</div>
+                    <div
+                        class="w-8 h-8 border border-cyan-800 flex items-center justify-center text-cyan bg-black text-xs">
+                        ◇</div>
+                    <div
+                        class="w-8 h-8 border border-cyan-800 flex items-center justify-center text-cyan bg-black text-xs">
+                        F</div>
                 </div>
-                <div class="bar-container h-1 mt-1">
+                <div class="bar-container h-1">
                     <div class="bar-fill bg-orange-500" style="width: 100%;"></div>
                 </div>
             </div>
 
-            <!-- Charge Bar (Middle) -->
-            <div class="hud-panel w-64 h-12 flex items-center justify-center mx-2 mb-4">
-                <div id="boss-hp-label" class="hidden text-xs text-red-500 mr-2">BOSS</div>
+            <!-- Target Bar (Middle) -->
+            <div id="target-bar-container"
+                class="hud-panel w-64 h-12 flex items-center justify-center mx-2 mb-4 hidden">
+                <div id="boss-hp-label" class="text-xs text-red-500 mr-2">TARGET</div>
                 <div class="bar-container w-full h-4">
                     <div id="boss-hp-bar" class="bar-fill bg-red-800" style="width: 100%;"></div>
                 </div>
@@ -356,7 +345,6 @@
         class="absolute top-16 right-2 w-10 h-10 border border-cyan bg-black text-cyan flex items-center justify-center pointer-events-auto">
         I
     </button>
-    </div>
 
     <!-- Touch Controls (Visible on touch devices) -->
     <div id="touch-controls" class="hidden">
