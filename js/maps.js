@@ -1,4 +1,4 @@
-import * as THREE from 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.module.js';
+import * as THREE from 'https://unpkg.com/three@0.128.0/build/three.module.js';
 import { GameData } from './data.js';
 import { gameState } from './state.js';
 

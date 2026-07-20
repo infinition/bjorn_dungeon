@@ -11,12 +11,16 @@ export const input = {
 };
 
 export const keys = {};
+let jumpCb = null;
+let prevGpA = false;
 
-export function initInputs(fireWeaponCallback, switchSpellCallback) {
+export function initInputs(fireWeaponCallback, switchSpellCallback, jumpCallback) {
+    jumpCb = jumpCallback;
     window.addEventListener('keydown', e => keys[e.code] = true);
     window.addEventListener('keyup', e => {
         keys[e.code] = false;
-        if (e.code === 'Space') input.fire = false;
+        // Rearme le tir au relachement de la barre espace
+        if (e.code === 'Space') { input.fire = false; gameState.isFiring = false; }
         // On remet interact à false quand on relâche E pour éviter le spam
         if (e.code === 'KeyE') input.interact = false;
     });
@@ -25,7 +29,7 @@ export function initInputs(fireWeaponCallback, switchSpellCallback) {
     const canvas = document.getElementById('game-canvas');
     if (canvas) {
         canvas.addEventListener('click', () => {
-            canvas.requestPointerLock();
+            if (!gameState.menuOpen) canvas.requestPointerLock();   // pas de re-lock si un menu est ouvert
         });
     }
 
@@ -118,7 +122,15 @@ export function initInputs(fireWeaponCallback, switchSpellCallback) {
                 rStick.addEventListener('touchstart', e => handleTouch(e, 'right', rStick), { passive: false });
                 rStick.addEventListener('touchmove', e => handleTouch(e, 'right', rStick), { passive: false });
                 rStick.addEventListener('touchend', e => resetTouch(e, 'right', rStick));
+                // Swipe léger vers le haut sur la zone droite -> saut
+                let sy = 0, st = 0, jumped = false;
+                rStick.addEventListener('touchstart', e => { const t = e.changedTouches[0]; sy = t.clientY; st = performance.now(); jumped = false; }, { passive: false });
+                rStick.addEventListener('touchmove', e => { const t = e.changedTouches[0]; if (!jumped && (sy - t.clientY) > 40 && (performance.now() - st) < 350) { jumped = true; if (jumpCb) jumpCb(); } }, { passive: false });
             }
+
+            // Bouton de saut (tactile)
+            const jumpBtn = document.getElementById('jump-btn');
+            if (jumpBtn) jumpBtn.addEventListener('touchstart', e => { e.preventDefault(); if (jumpCb) jumpCb(); }, { passive: false });
 
             const btn = document.getElementById('shoot-btn');
             if (btn) {
@@ -170,11 +182,7 @@ export function updateInputs(touchState, fireWeaponCallback) {
 
     // --- AJOUT : TOUCHE E POUR INTERACTION ---
     if (keys['KeyE']) input.interact = true;
-
-    if (keys['Space'] && !gameState.isFiring) {
-        gameState.isFiring = true;
-        if (fireWeaponCallback) fireWeaponCallback();
-    }
+    // (Espace = saut, géré par game.js - plus d'attaque au clavier)
 
     // --- TOUCH ---
     if (Math.abs(touchState.left.y) > 0.1) input.forward = -touchState.left.y;
@@ -205,14 +213,19 @@ export function updateInputs(touchState, fireWeaponCallback) {
 
         const isPressed = (btnIndex) => gp.buttons && gp.buttons[btnIndex] && gp.buttons[btnIndex].pressed;
 
-        // Tirer (RT ou A)
-        if ((isPressed(7) || isPressed(0)) && !gameState.isFiring) {
+        // Tirer (RT / gâchette droite)
+        if (isPressed(7) && !gameState.isFiring) {
             gameState.isFiring = true;
             if (fireWeaponCallback) fireWeaponCallback();
         }
-        if (!isPressed(7) && !isPressed(0)) gameState.isFiring = false;
+        if (!isPressed(7)) gameState.isFiring = false;
 
-        // Interaction (Bouton X/Carré - index 2, ou bouton Y/Triangle - index 3)
+        // Saut (A) - front montant
+        const a = isPressed(0);
+        if (a && !prevGpA && jumpCb) jumpCb();
+        prevGpA = a;
+
+        // Interaction (Bouton X/Carré - index 2)
         if (isPressed(2)) input.interact = true;
     }
 }

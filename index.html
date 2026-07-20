@@ -4,7 +4,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Bjorn Cyberviking</title>
+    <title>Bjorn Dungeon</title>
+    <!-- Import map : les exemples jsm (post-processing) importent Three via 'three' -->
+    <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.128.0/build/three.module.js"
+      }
+    }
+    </script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
 
@@ -36,6 +44,17 @@
             image-rendering: pixelated;
             /* CRUCIAL pour le look rétro */
             z-index: 1;
+            /* Etalonnage couleur facon pixel-art atmospherique */
+            filter: contrast(1.14) saturate(1.22) brightness(1.04);
+        }
+
+        /* Vignette (assombrit les bords, focalise le centre) */
+        .vignette {
+            position: absolute;
+            inset: 0;
+            z-index: 6;
+            pointer-events: none;
+            background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0) 42%, rgba(0, 0, 0, 0.45) 86%, rgba(0, 0, 0, 0.72) 100%);
         }
 
         /* Interface Utilisateur (HUD) */
@@ -63,6 +82,44 @@
             position: relative;
             overflow: hidden;
             border: 1px solid #2a4a4a;
+        }
+
+        /* Toutes les barres de progression remplissent la hauteur du conteneur */
+        .bar-fill {
+            height: 100%;
+            transition: width 0.15s linear;
+        }
+
+        /* Zones tactiles */
+        .touch-zone {
+            position: absolute;
+            bottom: 30px;
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: rgba(0, 40, 40, 0.25);
+            border: 2px solid rgba(77, 238, 234, 0.3);
+        }
+
+        #stick-left {
+            left: 20px;
+        }
+
+        #shoot-btn {
+            position: absolute;
+            bottom: 50px;
+            right: 160px;
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            background: rgba(255, 80, 80, 0.25);
+            border: 2px solid rgba(255, 100, 100, 0.6);
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 9px;
+            pointer-events: auto;
         }
 
 
@@ -126,6 +183,40 @@
             animation: shake 0.5s;
         }
 
+        /* --- Animations du viewmodel --- */
+        #viewmodel { animation: vmIdle 3.5s ease-in-out infinite; }
+        @keyframes vmIdle {
+            0%, 100% { transform: translateY(0) rotate(0deg); }
+            50% { transform: translateY(-10px) rotate(-2deg); }
+        }
+        #viewmodel.swing-melee { animation: swingMelee 0.28s ease-out; }
+        #viewmodel.swing-shoot { animation: swingShoot 0.25s ease-out; }
+        #viewmodel.swing-cast { animation: swingCast 0.3s ease-out; }
+        #viewmodel.drink { animation: drink 0.6s ease-in-out; }
+        #viewmodel.guard, #offhand-view.guard { transform: translateY(-30px) scale(1.1) !important; transition: transform .1s; }
+
+        @keyframes swingMelee {
+            0% { transform: rotate(35deg) translate(20px, 10px); }
+            40% { transform: rotate(-45deg) translate(-30px, -25px); }
+            100% { transform: rotate(0deg) translate(0, 0); }
+        }
+        @keyframes swingShoot {
+            0% { transform: translate(0, 0); }
+            30% { transform: translate(14px, 12px) scale(0.95); }
+            100% { transform: translate(0, 0); }
+        }
+        @keyframes swingCast {
+            0% { transform: translateY(0) rotate(0); }
+            40% { transform: translateY(-22px) rotate(-12deg) scale(1.08); }
+            100% { transform: translateY(0) rotate(0); }
+        }
+        @keyframes drink {
+            0% { transform: rotate(0) translate(0,0); }
+            40% { transform: rotate(-55deg) translate(-40px,-20px); }
+            70% { transform: rotate(-55deg) translate(-40px,-20px); }
+            100% { transform: rotate(0) translate(0,0); }
+        }
+
         @keyframes shake {
             0% {
                 transform: translate(1px, 1px) rotate(0deg);
@@ -171,6 +262,437 @@
                 transform: translate(1px, -2px) rotate(-1deg);
             }
         }
+        /* ============ HUD 16-BIT ============ */
+        .hud-panel {
+            background: linear-gradient(180deg, rgba(8, 26, 28, 0.92), rgba(4, 14, 16, 0.92));
+            border: 2px solid #3a6e6e;
+            box-shadow: inset 0 0 0 1px #07191a, 0 0 0 2px #02080a, 0 3px 0 #02080a;
+            border-radius: 3px;
+        }
+
+        /* Barres segmentées rétro */
+        .bar-container { position: relative; box-shadow: inset 0 0 0 1px #000; border-radius: 2px; }
+        .bar-container::after {
+            content: ''; position: absolute; inset: 0; pointer-events: none;
+            background-image: repeating-linear-gradient(90deg, transparent 0 5px, rgba(0, 0, 0, 0.4) 5px 6px);
+        }
+        .bar-fill { box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.28), inset 0 -3px 0 rgba(0, 0, 0, 0.35); }
+
+        /* Boutons pixel (UI + tactile) */
+        .pixel-btn {
+            font-family: 'Press Start 2P', cursive;
+            background: linear-gradient(180deg, rgba(10, 40, 42, 0.85), rgba(4, 20, 22, 0.85));
+            border: 2px solid #3a8a8a; color: #bdeaea;
+            box-shadow: inset 0 0 0 1px #061414, 0 3px 0 #021010;
+            display: flex; align-items: center; justify-content: center;
+            border-radius: 4px; user-select: none; text-shadow: 1px 1px 0 #000;
+        }
+        .pixel-btn:active { transform: translateY(2px); box-shadow: inset 0 0 0 1px #061414, 0 1px 0 #021010; }
+
+        /* Minimap cliquable */
+        #minimap { cursor: pointer; }
+
+        /* ============ GRANDE CARTE ============ */
+        #bigmap {
+            position: absolute; inset: 0; z-index: 90;
+            flex-direction: column; align-items: center; justify-content: center;
+            background: rgba(2, 6, 10, 0.82); pointer-events: auto;
+        }
+        /* n'affiche en flex QUE s'il n'est pas .hidden (sinon l'id écrase .hidden) */
+        #bigmap:not(.hidden) { display: flex; }
+        #bigmap.hidden { display: none; }
+        #bigmap canvas {
+            image-rendering: pixelated; border: 3px solid #3a6e6e;
+            box-shadow: 0 0 0 2px #02080a, 0 0 30px rgba(77, 238, 234, 0.15);
+            max-width: 92vw; max-height: 80vh;
+        }
+        #bigmap .legend { margin-top: 10px; font-size: 9px; color: #8fbcbc; text-align: center; }
+
+        /* ============ CONTROLES TACTILES ============ */
+        #touch-controls { position: absolute; inset: 0; z-index: 20; pointer-events: none; }
+        #touch-controls>* { pointer-events: auto; }
+        .act-btn { position: absolute; border-radius: 50%; }
+
+        @media (pointer: fine) {
+            /* sur desktop (souris) on n'affiche jamais les contrôles tactiles */
+            #touch-controls { display: none !important; }
+        }
+
+        /* Compactage sur petits écrans */
+        @media (max-width: 760px) {
+            #game-log { width: 9rem; height: 5rem; }
+            .hud-panel { padding: 5px; }
+            #minimap { width: 64px; height: 64px; }
+        }
+
+        /* ============ FANTASY UI PASS ============ */
+        :root {
+            --stone-0: #050406;
+            --stone-1: #111016;
+            --stone-2: #24202a;
+            --bronze: #a87835;
+            --bronze-hi: #f0ca72;
+            --bone: #e7d7ad;
+            --rune: #54d8d2;
+            --danger: #d94a3a;
+            --mana: #4a8ddf;
+            --vigor: #64c45e;
+        }
+        body, html {
+            background-color: var(--stone-0);
+            color: var(--bone);
+        }
+        #ui-layer {
+            color: var(--bone);
+            text-shadow: 2px 2px 0 #000, 0 0 8px rgba(0,0,0,0.95);
+        }
+        #start-screen {
+            background:
+                linear-gradient(180deg, rgba(5,4,6,0.10), rgba(5,4,6,0.85)),
+                url('assets/ui/title_dungeon.png') center/cover no-repeat,
+                #050406;
+        }
+        #start-screen::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background:
+                radial-gradient(circle at 50% 28%, rgba(240,202,114,0.22), transparent 23%),
+                linear-gradient(90deg, rgba(0,0,0,0.55), transparent 28%, transparent 72%, rgba(0,0,0,0.55));
+            pointer-events: none;
+        }
+        #start-screen > * { position: relative; z-index: 1; }
+        #start-screen h1 {
+            color: var(--bronze-hi) !important;
+            letter-spacing: 0;
+            text-shadow: 0 3px 0 #321c12, 0 0 18px rgba(240,202,114,0.45);
+        }
+        .hud-panel,
+        #inventory-modal,
+        #pause-modal,
+        #shop-modal {
+            background:
+                linear-gradient(180deg, rgba(35,31,38,0.94), rgba(12,10,14,0.96)),
+                url('assets/ui/panel_tile.png') !important;
+            border: 2px solid var(--bronze) !important;
+            box-shadow:
+                inset 0 0 0 1px #050406,
+                inset 0 0 18px rgba(240,202,114,0.06),
+                0 0 0 2px #050406,
+                0 5px 0 #050406,
+                0 0 18px rgba(0,0,0,0.55) !important;
+            border-radius: 5px;
+            color: var(--bone);
+        }
+        .bar-container {
+            border-color: #5f4829 !important;
+            box-shadow: inset 0 0 0 1px #000, 0 0 0 1px rgba(240,202,114,0.18);
+        }
+        .pixel-btn,
+        #toggle-inventory,
+        #start-btn,
+        #continue-btn,
+        #resume-btn,
+        #newgame-btn,
+        #editor-btn,
+        #shop-switch-mode,
+        .mode-pick {
+            background: linear-gradient(180deg, rgba(45,35,25,0.92), rgba(13,10,11,0.96)) !important;
+            border: 2px solid var(--bronze) !important;
+            color: var(--bone) !important;
+            box-shadow: inset 0 0 0 1px #060505, 0 3px 0 #050406, 0 0 10px rgba(168,120,53,0.14);
+            border-radius: 4px;
+        }
+        .pixel-btn:active,
+        #start-btn:active,
+        #resume-btn:active { transform: translateY(2px); }
+        #minimap {
+            border-color: var(--bronze) !important;
+            box-shadow: 0 0 0 2px #050406, 0 0 14px rgba(240,202,114,0.13);
+        }
+        #bigmap canvas {
+            border-color: var(--bronze) !important;
+            box-shadow: 0 0 0 2px #050406, 0 0 30px rgba(240,202,114,0.14);
+        }
+        .touch-zone {
+            background: rgba(12,10,8,0.38);
+            border-color: rgba(168,120,53,0.5);
+        }
+        .stick-knob {
+            background: rgba(240,202,114,0.55);
+            box-shadow: 0 0 10px rgba(240,202,114,0.28);
+        }
+        .spell-cell {
+            width: 34px !important;
+            height: 34px !important;
+            background: radial-gradient(circle at 50% 35%, rgba(64,52,40,0.9), rgba(5,4,6,0.92)) !important;
+            border-radius: 4px;
+            box-shadow: inset 0 0 0 1px #050406, 0 2px 0 #050406;
+        }
+        .spell-cell img { padding: 2px; }
+        #spell-bar {
+            display: grid !important;
+            grid-template-columns: repeat(6, 34px);
+            gap: 6px;
+            max-width: 240px;
+        }
+        /* Ecrans tactiles : cibles agrandies (>=44px) pour le doigt */
+        @media (pointer: coarse) {
+            .spell-cell { width: 44px !important; height: 44px !important; }
+            #spell-bar { grid-template-columns: repeat(5, 44px); gap: 8px; max-width: 280px; }
+        }
+        #game-log {
+            color: var(--bone);
+            max-width: min(32rem, 72vw);
+        }
+        #item-tip {
+            background:
+                linear-gradient(180deg, rgba(24,21,28,0.98), rgba(8,7,10,0.98)),
+                url('assets/ui/panel_tile.png') !important;
+            border-color: var(--bronze) !important;
+            border-radius: 5px !important;
+        }
+        input[type="range"] { accent-color: var(--bronze-hi); }
+        input, button { font-family: 'Press Start 2P', cursive; }
+
+        /* ============ RPG UI POLISH PASS ============ */
+        #ui-layer {
+            padding: clamp(6px, 1.2vw, 14px) !important;
+            isolation: isolate;
+        }
+        #ui-layer::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            z-index: -1;
+            background:
+                linear-gradient(180deg, rgba(0,0,0,0.44), transparent 20%, transparent 72%, rgba(0,0,0,0.34)),
+                radial-gradient(circle at 50% 100%, rgba(240,202,114,0.08), transparent 42%);
+        }
+        #ui-layer > .flex.justify-between.items-start.w-full {
+            display: grid !important;
+            grid-template-columns: minmax(250px, 460px) auto max-content;
+            align-items: start;
+            justify-content: space-between;
+            gap: 10px;
+        }
+        #ui-layer > .flex.justify-between.items-start.w-full > div {
+            width: auto !important;
+        }
+        #ui-layer > .flex.justify-between.items-start.w-full > div:first-child,
+        #ui-layer > .flex.justify-between.items-start.w-full > div:nth-child(2),
+        #ui-layer > .flex.justify-between.items-start.w-full > div:nth-child(3) {
+            padding: 8px 10px;
+            background:
+                linear-gradient(180deg, rgba(23,19,24,0.78), rgba(6,5,8,0.82)),
+                url('assets/ui/panel_tile.png');
+            border: 1px solid rgba(168,120,53,0.68);
+            box-shadow: inset 0 0 0 1px #050406, 0 2px 0 #050406, 0 0 16px rgba(0,0,0,0.42);
+            border-radius: 5px;
+        }
+        #level-display,
+        #depth-display,
+        #gold-display,
+        #honor-display,
+        #kills-display {
+            text-shadow: 0 2px 0 #050406, 0 0 10px rgba(240,202,114,0.16);
+        }
+        #level-display {
+            color: var(--bronze-hi);
+        }
+        #xp-text {
+            color: #aeb8c8 !important;
+            white-space: nowrap;
+        }
+        #ui-layer .bar-container {
+            min-height: 8px;
+        }
+        #ui-layer > .flex.justify-between.items-end.w-full {
+            align-items: end !important;
+            gap: 12px;
+        }
+        #ui-layer > .flex.justify-between.items-end.w-full > .hud-panel {
+            width: min(390px, 48vw) !important;
+            min-width: 280px;
+            padding: 10px !important;
+        }
+        #ui-layer > .flex.justify-between.items-end.w-full > .hud-panel::before,
+        #inventory-modal::before,
+        #shop-modal::before,
+        #pause-modal::before,
+        #target-bar-container::before {
+            content: '';
+            display: block;
+            height: 3px;
+            margin: -3px -3px 7px;
+            background: linear-gradient(90deg, transparent, rgba(240,202,114,0.78), transparent);
+            opacity: 0.75;
+        }
+        #spell-bar {
+            display: grid !important;
+            grid-template-columns: repeat(auto-fit, minmax(34px, 34px)) !important;
+            justify-content: start;
+            max-width: 100% !important;
+            gap: 7px !important;
+        }
+        .spell-cell {
+            position: relative;
+            overflow: visible;
+            transition: filter .12s ease, transform .12s ease, box-shadow .12s ease;
+        }
+        .spell-cell:hover {
+            filter: brightness(1.18);
+            transform: translateY(-1px);
+        }
+        .spell-cell::after {
+            content: '';
+            position: absolute;
+            inset: 2px;
+            pointer-events: none;
+            border-radius: 3px;
+            box-shadow: inset 0 0 8px rgba(240,202,114,0.08);
+        }
+        #target-bar-container {
+            width: min(420px, 86vw) !important;
+        }
+        #boss-hp-label {
+            color: #ffd4ba !important;
+            max-width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        #game-log {
+            right: clamp(8px, 1vw, 18px) !important;
+            bottom: clamp(8px, 1vw, 18px) !important;
+            max-width: min(34rem, 58vw);
+        }
+        #game-log > div {
+            background: linear-gradient(90deg, rgba(5,4,6,0), rgba(5,4,6,0.62));
+            padding: 1px 4px;
+            border-right: 1px solid rgba(168,120,53,0.38);
+        }
+        #toggle-inventory {
+            border-color: var(--bronze) !important;
+            color: var(--bronze-hi) !important;
+            background: rgba(7,6,9,0.86) !important;
+            box-shadow: inset 0 0 0 1px #050406, 0 2px 0 #050406;
+            border-radius: 5px;
+        }
+        #inventory-modal {
+            width: min(760px, calc(100vw - 24px)) !important;
+            max-height: calc(100vh - 24px) !important;
+        }
+        #inventory-modal > .flex.gap-3 {
+            display: grid !important;
+            grid-template-columns: minmax(230px, 0.9fr) minmax(260px, 1.1fr);
+            gap: 14px !important;
+        }
+        #inventory-modal > .flex.gap-3 > div {
+            width: auto !important;
+        }
+        #equipment-slots > div,
+        #inventory-grid > div {
+            background:
+                radial-gradient(circle at 50% 35%, rgba(49,39,32,0.78), rgba(4,4,7,0.94)) !important;
+            box-shadow: inset 0 0 0 1px #050406, 0 2px 0 #050406;
+            border-radius: 4px;
+        }
+        #inventory-grid {
+            grid-template-columns: repeat(auto-fill, minmax(44px, 1fr)) !important;
+            max-height: min(48vh, 420px) !important;
+        }
+        #item-tip {
+            width: min(280px, calc(100vw - 20px)) !important;
+        }
+        #pause-modal,
+        #shop-modal {
+            width: min(560px, calc(100vw - 24px)) !important;
+            max-height: calc(100vh - 24px) !important;
+            overflow-y: auto;
+        }
+
+        @media (max-width: 860px) {
+            #ui-layer > .flex.justify-between.items-start.w-full {
+                grid-template-columns: 1fr auto;
+            }
+            #ui-layer > .flex.justify-between.items-start.w-full > div:nth-child(2) {
+                grid-column: 1 / 2;
+                grid-row: 2;
+                display: flex;
+                gap: 8px;
+                justify-content: space-between;
+                font-size: 9px;
+            }
+            #ui-layer > .flex.justify-between.items-start.w-full > div:nth-child(3) {
+                grid-column: 2;
+                grid-row: 1 / span 2;
+                min-width: 96px;
+            }
+            #minimap {
+                width: 72px !important;
+                height: 72px !important;
+            }
+            #ui-layer > .flex.justify-between.items-end.w-full > .hud-panel {
+                width: min(360px, 60vw) !important;
+                min-width: 250px;
+            }
+            #game-log {
+                max-width: 38vw;
+                font-size: 9px !important;
+            }
+        }
+        @media (max-width: 640px) {
+            #ui-layer {
+                padding: 5px !important;
+            }
+            #ui-layer > .flex.justify-between.items-start.w-full {
+                grid-template-columns: 1fr auto;
+                gap: 5px;
+            }
+            #ui-layer > .flex.justify-between.items-start.w-full > div:first-child,
+            #ui-layer > .flex.justify-between.items-start.w-full > div:nth-child(2),
+            #ui-layer > .flex.justify-between.items-start.w-full > div:nth-child(3) {
+                padding: 5px 6px;
+            }
+            #xp-text,
+            #honor-display {
+                display: none;
+            }
+            #ui-layer > .flex.justify-between.items-end.w-full {
+                align-items: end !important;
+            }
+            #ui-layer > .flex.justify-between.items-end.w-full > .hud-panel {
+                width: calc(100vw - 10px) !important;
+                min-width: 0;
+            }
+            #spell-bar {
+                grid-template-columns: repeat(5, 34px) !important;
+            }
+            #game-log {
+                display: none;
+            }
+            #inventory-modal > .flex.gap-3,
+            #shop-modal > .flex.gap-3 {
+                grid-template-columns: 1fr !important;
+                display: grid !important;
+            }
+            #inventory-grid {
+                max-height: 34vh !important;
+            }
+            #toggle-inventory {
+                top: 112px !important;
+                right: 6px !important;
+                width: 36px !important;
+                height: 36px !important;
+            }
+            #start-screen .hud-panel {
+                width: min(92vw, 330px) !important;
+            }
+            #start-screen h1 {
+                font-size: 1.75rem !important;
+            }
+        }
     </style>
 </head>
 
@@ -178,18 +700,43 @@
 
     <!-- Start Screen -->
     <div id="start-screen">
-        <h1 class="text-4xl text-cyan mb-4">BJORN CYBERVIKING</h1>
-        <p class="text-orange mb-8 text-xs">BOSS ROOM INCURSION</p>
-        <div class="text-xs text-gray-400 mb-8 max-w-md leading-6">
-            <p>CONTROLES:</p>
-            <p>CLAVIER: ZQSD / Flèches pour bouger. ESPACE pour tirer.</p>
-            <p>TACTILE: Joystick Gauche (Bouger), Droit (Viser), Bouton (Tirer)</p>
-            <p>MANETTE: Stick Gauche (Bouger), Droit (Viser), RT (Tirer)</p>
-        </div>
-        <button id="start-btn"
-            class="px-6 py-3 border-2 border-cyan text-cyan hover:bg-cyan-900 transition text-sm blink">
-            COMMENCER LA RAID
+        <h1 class="text-4xl text-cyan mb-1">BJORN DUNGEON</h1>
+        <p class="text-orange mb-5 text-[10px]">CHRONIQUES DES RUNES</p>
+
+        <!-- Continuer la partie (si sauvegarde) -->
+        <button id="continue-btn"
+            class="hidden px-6 py-3 border-2 border-green-400 text-green-300 hover:bg-green-900/40 transition text-sm mb-4">
+            ▶ CONTINUER
         </button>
+
+        <!-- Création de personnage -->
+        <div class="hud-panel p-4 mb-4 w-80 text-left">
+            <div class="text-cyan text-[11px] mb-2">NOUVEAU PERSONNAGE</div>
+            <input id="char-name" maxlength="16" placeholder="Nom du héros..."
+                class="w-full px-3 py-2 mb-2 bg-black/60 border border-cyan-800 text-cyan text-xs focus:outline-none focus:border-cyan">
+            <div id="char-bonus" class="text-[10px] text-yellow-300 mb-1 leading-4">-</div>
+            <div id="char-attrs" class="text-[9px] text-slate-400 mb-3 leading-4">-</div>
+            <div class="text-cyan text-[11px] mb-1">MODE</div>
+            <div class="flex gap-2 mb-1">
+                <button id="mode-delve" class="mode-pick flex-1 px-2 py-2 border-2 border-cyan text-cyan text-[10px]">DELVE<br><span class="text-[8px] text-slate-400">descente, boss/étage</span></button>
+                <button id="mode-lab" class="mode-pick flex-1 px-2 py-2 border-2 border-cyan-900 text-slate-400 text-[10px]">LABYRINTHE<br><span class="text-[8px] text-slate-500">dédale, portail libre</span></button>
+            </div>
+        </div>
+
+        <button id="start-btn"
+            class="px-6 py-3 border-2 border-cyan text-cyan hover:bg-cyan-900 transition text-sm">
+            CRÉER &amp; JOUER
+        </button>
+
+        <details class="mt-4 text-[10px] text-slate-400 max-w-md">
+            <summary class="cursor-pointer hover:text-cyan-300">Contrôles</summary>
+            <div class="mt-2 leading-5">
+                ZQSD/Souris bouger·viser - CLIC attaquer - ESPACE sauter - C sort - CTRL esquive - Clic-droit/Maj blocage<br>
+                Molette/1-N action - E coffre/secret - TAB carte - I inventaire - F potion - M son - ÉCHAP pause<br>
+                Tactile : sticks + boutons (swipe haut = saut) · Manette : sticks, RT attaque, A saut
+            </div>
+        </details>
+        <a href="forge.html" class="mt-3 text-[10px] text-slate-500 hover:text-cyan-300 underline">🔧 Forge (éditeur)</a>
     </div>
 
     <!-- UI Overlay -->
@@ -199,7 +746,7 @@
         <div class="flex justify-between items-start w-full">
             <!-- Stats Gauche -->
             <div class="w-1/3">
-                <div class="text-cyan text-sm mb-1">BJORN Cyberviking</div>
+                <div class="text-cyan text-sm mb-1">BJORN Dungeon</div>
                 <div class="flex items-center text-xs mb-1">
                     <span id="level-display" class="mr-2">Lv 1</span>
                     <div class="bar-container w-24 mr-2">
@@ -210,14 +757,15 @@
             </div>
 
             <!-- Stats Centre -->
-            <div class="w-1/3 text-center pt-2">
-                <span class="text-orange text-xs mr-4">Gold 128</span>
-                <span class="text-cyan text-xs">Honor 22</span>
+            <div class="w-1/3 text-center pt-2 text-xs">
+                <span id="gold-display" class="text-yellow-400 mr-3">Or 0</span>
+                <span id="honor-display" class="text-cyan mr-3">Honneur 0</span>
+                <span id="kills-display" class="text-red-400">Kills 0</span>
             </div>
 
             <!-- Stats Droite + Minimap -->
             <div class="w-1/3 flex flex-col items-end">
-                <div class="text-cyan text-xs mb-1 text-right w-full">Boss Room</div>
+                <div id="depth-display" class="text-orange text-xs mb-1 text-right w-full">Étage 1</div>
                 <canvas id="minimap" width="80" height="80" class="mt-1"></canvas>
             </div>
         </div>
@@ -228,6 +776,9 @@
             <div class="w-4 h-1 bg-cyan-400 absolute top-1/2 -translate-y-1/2 -translate-x-1/2"></div>
         </div>
 
+        <!-- Statuts du joueur (icônes) -->
+        <div id="status-bar" class="absolute top-20 left-1/2 -translate-x-1/2 text-2xl pointer-events-none"></div>
+
         <!-- Damage Overlay -->
         <div id="damage-overlay"
             class="absolute top-0 left-0 w-full h-full bg-red-500 opacity-0 pointer-events-none transition-opacity duration-75">
@@ -237,86 +788,92 @@
         <div class="flex justify-between items-end w-full mt-auto">
 
             <!-- Skills & Player HP -->
-            <div class="hud-panel w-48 flex flex-col justify-between pointer-events-auto p-2">
+            <div class="hud-panel w-56 flex flex-col justify-between pointer-events-auto p-2">
                 <!-- Player HP -->
-                <div class="flex items-center w-full justify-between mb-2">
-                    <span class="text-cyan text-xs mr-2">HP</span>
-                    <div class="bar-container w-32 h-3">
-                        <div id="hp-bar" class="bar-fill bg-red-600" style="width: 100%;"></div>
+                <div class="flex items-center w-full justify-between mb-1">
+                    <span class="text-red-400 text-[10px] mr-2 w-8">HP</span>
+                    <div class="bar-container flex-1 h-3 mr-2">
+                        <div id="hp-bar" class="bar-fill bg-red-600 h-full transition-all duration-150" style="width: 100%;"></div>
                     </div>
+                    <span id="hp-text" class="text-gray-400 text-[9px] w-12 text-right">100/100</span>
+                </div>
+                <!-- Player Mana -->
+                <div class="flex items-center w-full justify-between mb-1">
+                    <span class="text-blue-400 text-[10px] mr-2 w-8">MP</span>
+                    <div class="bar-container flex-1 h-3 mr-2">
+                        <div id="mana-bar" class="bar-fill bg-blue-500 h-full transition-all duration-150" style="width: 100%;"></div>
+                    </div>
+                    <span id="mana-text" class="text-gray-400 text-[9px] w-12 text-right">100/100</span>
+                </div>
+                <!-- Stamina (esquive) -->
+                <div class="flex items-center w-full justify-between mb-2">
+                    <span class="text-green-300 text-[10px] mr-2 w-8">SP</span>
+                    <div class="bar-container flex-1 h-2 mr-2">
+                        <div id="stamina-bar" class="bar-fill bg-green-400 h-full transition-all duration-100" style="width: 100%;"></div>
+                    </div>
+                    <span class="text-gray-500 text-[8px] w-12 text-right">Ctrl=dash</span>
                 </div>
 
                 <!-- Spells -->
-                <div class="flex justify-between text-cyan text-[10px] mb-1">
-                    <span>Lightning</span>
-                    <span>Rune</span>
+                <div class="flex justify-between items-center text-cyan text-[10px] mb-1">
+                    <span>SORTS [1-4 / molette]</span>
+                    <span id="current-spell-name" class="text-white">Rune</span>
                 </div>
-                <div id="spell-bar" class="flex space-x-2 mb-1">
-                    <div
-                        class="w-8 h-8 border border-cyan-800 flex items-center justify-center text-cyan bg-black text-xs">
-                        ⚡</div>
-                    <div
-                        class="w-8 h-8 border border-cyan-800 flex items-center justify-center text-cyan bg-black text-xs">
-                        †</div>
-                    <div
-                        class="w-8 h-8 border border-cyan-800 flex items-center justify-center text-cyan bg-black text-xs">
-                        ◇</div>
-                    <div
-                        class="w-8 h-8 border border-cyan-800 flex items-center justify-center text-cyan bg-black text-xs">
-                        F</div>
-                </div>
-                <div class="bar-container h-1">
-                    <div class="bar-fill bg-orange-500" style="width: 100%;"></div>
-                </div>
+                <div id="spell-bar" class="flex space-x-2 mb-1"></div>
             </div>
 
-            <!-- Target Bar (Middle) -->
+            <!-- Barre de vie de la cible : nom AU-DESSUS, largeur fixe (haut-centre) -->
             <div id="target-bar-container"
-                class="hud-panel w-64 h-12 flex items-center justify-center mx-2 mb-4 hidden">
-                <div id="boss-hp-label" class="text-xs text-red-500 mr-2">TARGET</div>
+                class="hidden fixed top-14 left-1/2 -translate-x-1/2 z-[45] hud-panel w-72 flex flex-col items-center px-3 py-1.5">
+                <div id="boss-hp-label" class="text-xs text-red-300 mb-1 whitespace-nowrap text-center">TARGET</div>
                 <div class="bar-container w-full h-4">
                     <div id="boss-hp-bar" class="bar-fill bg-red-800" style="width: 100%;"></div>
                 </div>
             </div>
 
-            <!-- Log -->
-            <div class="flex flex-col items-end">
-                <div class="hud-panel mb-2 text-cyan text-xs px-2 py-1">Log</div>
-                <div class="hud-panel w-48 h-24 overflow-hidden flex flex-col justify-end text-[10px] leading-4"
-                    id="game-log">
-                    <div class="text-orange">Boss enragé!</div>
-                    <div class="text-orange">Rune de Givre activée</div>
-                    <div class="text-gray-400">Entrée dans le donjon...</div>
-                </div>
-            </div>
+        </div>
+        <!-- Messages flottants (bas-droite, discrets, sans cadre) -->
+        <div id="game-log" class="fixed bottom-4 right-4 z-[40] flex flex-col items-end gap-0.5 pointer-events-none text-[11px] leading-4"
+            style="text-shadow:0 1px 2px #000, 0 0 6px rgba(0,0,0,0.9)"></div>
+        <!-- Barre de construction (pioche) : discrète, en bas-centre -->
+        <div id="build-bar" class="hidden fixed bottom-28 left-1/2 -translate-x-1/2 z-[44] flex flex-col items-center gap-1 px-3 py-1.5 bg-black/70 border border-amber-700/70 rounded text-[10px] text-amber-200 pointer-events-auto max-w-[92vw]">
+            <span>⛏ <b>Clic gauche</b> (ou maintien) creuse · <b>Clic droit</b> (ou maintien) construit - texture du bloc :</span>
+            <div id="build-colors" class="flex gap-1 overflow-x-auto max-w-[600px] py-0.5"></div>
+        </div>
+        <!-- Palette de décors (marteau) -->
+        <div id="prop-bar" class="hidden fixed bottom-28 left-1/2 -translate-x-1/2 z-[44] flex flex-col items-center gap-1 px-3 py-1.5 bg-black/70 border border-amber-700/70 rounded text-[10px] text-amber-200 pointer-events-auto max-w-[90vw]">
+            <span>🔨 <b>Gauche</b> pose · <b>Droit</b> retire · <b>R</b> pivote</span>
+            <div id="prop-list" class="flex flex-wrap gap-1 justify-center max-w-[600px]"></div>
         </div>
     </div>
 
     <!-- Inventory Modal (Hidden by default) -->
     <div id="inventory-modal"
-        class="hidden absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-black border-2 border-cyan p-4 w-80 h-96 z-50 pointer-events-auto">
-        <div class="flex justify-between items-center mb-4">
-            <h2 class="text-cyan text-sm">INVENTAIRE</h2>
+        class="hidden absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-black border-2 border-cyan p-3 w-[640px] max-w-[96vw] max-h-[92vh] z-50 pointer-events-auto overflow-y-auto">
+        <div class="flex justify-between items-center mb-2">
+            <h2 class="text-cyan text-sm">INVENTAIRE & PERSONNAGE</h2>
             <button id="close-inventory" class="text-red-500 text-xs">X</button>
         </div>
 
-        <!-- Equipment Slots -->
-        <div class="flex justify-center space-x-4 mb-4">
-            <div id="slot-mainhand"
-                class="w-12 h-12 border border-gray-600 bg-gray-900 flex items-center justify-center text-xs text-gray-500">
-                MAIN</div>
-            <div id="slot-armor"
-                class="w-12 h-12 border border-gray-600 bg-gray-900 flex items-center justify-center text-xs text-gray-500">
-                ARMOR</div>
-            <div id="slot-offhand"
-                class="w-12 h-12 border border-gray-600 bg-gray-900 flex items-center justify-center text-xs text-gray-500">
-                OFF</div>
+        <div class="flex gap-3">
+            <!-- Left: Equipment + attributes -->
+            <div class="w-1/2">
+                <div class="text-cyan text-[10px] mb-1">EQUIPEMENT</div>
+                <div id="equipment-slots" class="grid grid-cols-3 gap-1 mb-2"></div>
+                <div id="inv-stats" class="text-[9px] mb-2 leading-4"></div>
+                <div class="text-cyan text-[10px] mb-1">ATTRIBUTS <span id="attr-points" class="text-yellow-400"></span></div>
+                <div id="attr-panel" class="flex flex-col gap-1"></div>
+                <div class="text-cyan text-[10px] mb-1 mt-2">COMPÉTENCES <span id="skill-points" class="text-yellow-400"></span></div>
+                <div id="skill-panel" class="flex flex-col gap-1" style="max-height:160px;overflow-y:auto"></div>
+            </div>
+            <!-- Right: Bag -->
+            <div class="w-1/2">
+                <div class="text-cyan text-[10px] mb-1">SAC</div>
+                <div id="inventory-grid" class="grid grid-cols-5 gap-1 overflow-y-auto" style="max-height:340px"></div>
+                <div id="craft-panel" class="mt-3 text-[9px] leading-4 border border-yellow-700/60 p-2 bg-black/40"></div>
+            </div>
         </div>
-
-        <!-- Grid -->
-        <div id="inventory-grid" class="grid grid-cols-5 gap-2 overflow-y-auto h-60">
-            <!-- Slots generated by JS -->
-        </div>
+        <div class="text-[8px] text-gray-500 mt-2 text-center">Clic objet : équiper / utiliser, D : démonter, + : améliorer, Clic droit objet : jeter</div>
     </div>
 
     <!-- Inventory Toggle Button -->
@@ -327,15 +884,120 @@
 
     <!-- Touch Controls (Visible on touch devices) -->
     <div id="touch-controls" class="hidden">
-        <div id="stick-left" class="touch-zone">
-            <div class="stick-knob"></div>
+        <!-- Stick gauche : déplacement -->
+        <div id="stick-left" class="touch-zone"><div class="stick-knob"></div></div>
+        <!-- Stick droit : visée (swipe haut = saut) -->
+        <div id="stick-right" class="touch-zone"><div class="stick-knob"></div></div>
+
+        <!-- Cluster d'action (pouce droit) -->
+        <div id="shoot-btn" class="act-btn pixel-btn" style="right:160px; bottom:44px; width:88px; height:88px; font-size:9px; border-color:#ff6a6a; color:#ffd6d6;">ATK</div>
+        <div id="jump-btn" class="act-btn pixel-btn" style="right:182px; bottom:156px; width:70px; height:70px; font-size:8px; border-color:#9aff66; color:#d8ffc4;">SAUT</div>
+        <div id="cast-btn" class="act-btn pixel-btn" style="right:268px; bottom:96px; width:64px; height:64px; font-size:8px; border-color:#4deeea; color:#bdeaea;">SORT</div>
+        <div id="block-btn" class="act-btn pixel-btn" style="right:286px; bottom:198px; width:60px; height:60px; font-size:8px; border-color:#7fb0ff; color:#cfe2ff;">GARDE</div>
+        <button id="interact-btn" class="act-btn pixel-btn" style="right:40px; bottom:162px; width:56px; height:56px; font-size:11px; border-color:#ffd24d; color:#ffe9a0;">E</button>
+
+        <!-- Colonne utilitaire gauche : menu, son, potion, carte -->
+        <div id="touch-util-left" style="position:absolute; left:8px; top:50%; transform:translateY(-50%); display:flex; flex-direction:column; gap:10px; pointer-events:none;">
+            <button id="pause-btn" class="pixel-btn" style="width:46px; height:46px; font-size:18px; pointer-events:auto; border-color:#c9a24b; color:#ffe9a0;">☰</button>
+            <button id="mute-btn" class="pixel-btn" style="width:46px; height:46px; font-size:18px; pointer-events:auto; border-color:#7fb0ff; color:#cfe2ff;">🔊</button>
+            <button id="potion-btn" class="pixel-btn" style="width:46px; height:46px; font-size:18px; pointer-events:auto;">🧪</button>
+            <button id="map-btn" class="pixel-btn" style="width:46px; height:46px; font-size:16px; pointer-events:auto;">🗺</button>
         </div>
-        <div id="stick-right" class="touch-zone">
-            <div class="stick-knob"></div>
+
+        <!-- Colonne utilitaire droite : esquive / sort suivant -->
+        <div id="touch-util-right" style="position:absolute; right:8px; top:44%; transform:translateY(-50%); display:flex; flex-direction:column; gap:10px; pointer-events:none;">
+            <button id="dash-btn" class="pixel-btn" style="width:60px; height:60px; font-size:9px; pointer-events:auto; border-color:#88ddff; color:#d6f2ff;">ESQUIVE</button>
+            <button id="spellnext-btn" class="pixel-btn" style="width:60px; height:52px; font-size:9px; pointer-events:auto; border-color:#4deeea; color:#bdeaea;">SORT ▸</button>
         </div>
-        <div id="shoot-btn">ATTACK</div>
     </div>
 
+    <!-- Grande carte (Tab / clic minimap) -->
+    <div id="bigmap" class="hidden">
+        <canvas id="bigmap-canvas" width="520" height="520"></canvas>
+        <div class="legend">
+            <span style="color:#4deeea">■</span> Toi &nbsp; <span style="color:#ff3030">■</span> Boss &nbsp;
+            <span style="color:#e0a0ff">■</span> Portail &nbsp; <span style="color:#ffd24d">■</span> Coffre &nbsp;
+            <span style="color:#7a2222">■</span> Trou &nbsp;&nbsp; - Tab / toucher pour fermer
+        </div>
+    </div>
+
+    <!-- Pause / Réglages (Échap) -->
+    <div id="pause-modal"
+        class="hidden absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-black/95 border-2 border-cyan p-5 w-80 z-[60] pointer-events-auto text-cyan">
+        <h2 class="text-sm mb-4 text-center">PAUSE</h2>
+        <label class="block text-[10px] mb-1">FOV <span id="fov-val">50</span></label>
+        <input id="set-fov" type="range" min="40" max="110" value="50" class="w-full mb-3">
+        <label class="block text-[10px] mb-1">Pixelisation <span id="pixel-val">88</span></label>
+        <input id="set-pixel" type="range" min="0" max="100" value="88" class="w-full mb-3">
+        <label class="block text-[10px] mb-1">Hauteur des armes <span id="weapon-y-val">0</span></label>
+        <input id="set-weapon-y" type="range" min="-30" max="30" value="0" class="w-full mb-3">
+        <label class="block text-[10px] mb-1">Volume <span id="vol-val">50</span></label>
+        <input id="set-volume" type="range" min="0" max="100" value="50" class="w-full mb-3">
+        <label class="block text-[10px] mb-1">Bloom (lueur) <span id="bloom-val">85</span></label>
+        <input id="set-bloom" type="range" min="0" max="250" value="85" class="w-full mb-4">
+        <label class="flex items-center gap-2 text-[10px] mb-4">
+            <input id="set-auto-equip" type="checkbox" class="accent-cyan-400">
+            Auto équiper les slots vides
+        </label>
+        <div class="text-[8px] text-gray-400 leading-4 mb-4">
+            ZQSD bouger · Souris viser · Clic attaquer · C sort · Clic-droit/Maj bloquer<br>
+            Ctrl esquive · E coffre/secret · I inventaire · F potion · M son · Échap pause
+        </div>
+        <button id="resume-btn" class="w-full py-2 border border-cyan hover:bg-cyan-900 text-xs">REPRENDRE</button>
+        <button id="editor-btn" class="w-full py-2 mt-2 border border-fuchsia-500 text-fuchsia-300 hover:bg-fuchsia-900/40 text-[10px]">⚒ ÉDITEUR (FORGE) - la partie est conservée</button>
+        <button id="newgame-btn" class="w-full py-2 mt-2 border border-red-500 text-red-300 hover:bg-red-900/40 text-[10px]">NOUVELLE PARTIE (efface la sauvegarde)</button>
+    </div>
+
+    <!-- Marchand -->
+    <div id="shop-modal"
+        class="hidden absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-black border-2 border-yellow-500 p-4 w-[520px] max-w-[95vw] max-h-[90vh] overflow-y-auto z-[60] pointer-events-auto">
+        <div class="flex justify-between items-center mb-2">
+            <h2 class="text-yellow-400 text-sm">MARCHAND ERRANT</h2>
+            <div class="flex items-center gap-3">
+                <span id="shop-gold" class="text-yellow-400 text-xs">Or 0</span>
+                <button id="close-shop" class="text-red-500 text-xs">X</button>
+            </div>
+        </div>
+        <div class="flex gap-3">
+            <div class="w-1/2">
+                <div class="text-yellow-300 text-[10px] mb-1">ACHETER</div>
+                <div id="shop-buy" class="flex flex-col gap-1"></div>
+            </div>
+            <div class="w-1/2">
+                <div class="text-green-300 text-[10px] mb-1">VENDRE (sac)</div>
+                <div id="shop-sell" class="flex flex-col gap-1 max-h-72 overflow-y-auto"></div>
+            </div>
+        </div>
+        <div class="mt-3 pt-2 border-t border-yellow-900 flex items-center justify-between">
+            <span class="text-[9px] text-slate-400">Voyage : <span id="shop-mode" class="text-cyan">Delve</span></span>
+            <button id="shop-switch-mode" class="px-3 py-1 border border-cyan text-cyan text-[10px] hover:bg-cyan-900/40">⇄ Changer de mode</button>
+        </div>
+    </div>
+
+    <!-- Tooltip d'objet (style RPG, comparaison vert/rouge) -->
+    <div id="item-tip" class="hidden fixed z-[300] pointer-events-none w-60 p-2 text-[11px] leading-4 rounded-md"
+        style="background:rgba(8,10,16,0.97); border:2px solid #555; box-shadow:0 6px 22px rgba(0,0,0,0.7);"></div>
+
+    <!-- End Screen (Game Over / Victory) -->
+    <div id="end-screen"
+        class="hidden absolute top-0 left-0 w-full h-full bg-black/90 z-[200] flex-col justify-center items-center text-center pointer-events-auto">
+        <h1 id="end-title" class="text-4xl mb-6">GAME OVER</h1>
+        <div id="end-sub" class="text-xs text-gray-300 mb-8 leading-6"></div>
+        <button id="restart-btn"
+            class="px-6 py-3 border-2 border-green-400 text-green-300 hover:bg-green-900/40 transition text-sm">
+            ▶ REPRENDRE AU CHECKPOINT
+        </button>
+    </div>
+
+    <!-- Viewmodel (arme en main, animée) -->
+    <div id="viewmodel"
+        class="absolute z-[9] pointer-events-none select-none"
+        style="right: 19%; bottom: 1%; font-size: 130px; filter: drop-shadow(0 0 10px #000); transform-origin: bottom right;">🗡️</div>
+    <div id="offhand-view"
+        class="absolute z-[9] pointer-events-none select-none"
+        style="left: 15%; bottom: 0%; font-size: 110px; filter: drop-shadow(0 0 10px #000); transform-origin: bottom left; display:none;">🛡️</div>
+
+    <div class="vignette"></div>
     <div class="scanlines"></div>
     <div id="canvas-container"></div>
 

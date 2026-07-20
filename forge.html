@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bjorn Forge - Studio de contenu</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <style>
+        body { background: #0a0e14; color: #cdd6e4; font-family: ui-sans-serif, system-ui, sans-serif; }
+        .pixel { font-family: 'Press Start 2P', monospace; }
+        .glass { background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.08); backdrop-filter: blur(6px); }
+        .glass-input { background: rgba(0, 0, 0, 0.35); border: 1px solid rgba(255, 255, 255, 0.12); color: #e6edf6; }
+        .glass-input:focus { outline: none; border-color: #4deeea; box-shadow: 0 0 0 2px rgba(77, 238, 234, 0.2); }
+        .btn { border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 8px; padding: 6px 12px; font-size: 12px; transition: all .15s; }
+        .btn:hover { background: rgba(255, 255, 255, 0.08); }
+        .btn-primary { background: rgba(77, 238, 234, 0.15); border-color: rgba(77, 238, 234, 0.5); color: #4deeea; }
+        .btn-primary:hover { background: rgba(77, 238, 234, 0.3); }
+        .btn-danger { color: #ff7a7a; border-color: rgba(255, 80, 80, 0.4); }
+        .btn-danger:hover { background: rgba(255, 80, 80, 0.2); }
+        .tab.active { background: rgba(77, 238, 234, 0.15); color: #4deeea; border-color: rgba(77, 238, 234, 0.4); }
+        .list-item.active { background: rgba(77, 238, 234, 0.12); border-color: rgba(77, 238, 234, 0.35); }
+        canvas.pixelated { image-rendering: pixelated; }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.12); border-radius: 4px; }
+        .modal-bg { background: rgba(0, 0, 0, 0.75); }
+
+        /* ============ RESPONSIVE / MOBILE ============ */
+        @media (max-width: 820px) {
+            body { height: auto !important; min-height: 100vh; overflow-y: auto !important; }
+            #forge-toolbar { flex-wrap: wrap; gap: 8px; }
+            #forge-main { flex-direction: column; min-height: 0; }
+            #forge-tabs { width: 100% !important; flex-direction: row !important; flex-wrap: wrap; overflow: visible !important; }
+            #forge-tabs .tab { flex: 1 1 auto; text-align: center; }
+            #forge-list { width: 100% !important; max-height: 34vh; border-right: none; border-bottom: 1px solid rgba(255,255,255,0.1); }
+            #forge-editor { flex: 1 1 auto; min-height: 60vh; overflow-y: visible; padding: 12px !important; }
+            #forge-editor #editor { max-width: 100% !important; }
+            /* Grilles internes generees en JS : moins de colonnes sur petit ecran */
+            .grid-cols-6 { grid-template-columns: repeat(3, minmax(0,1fr)) !important; }
+            .grid-cols-2 { grid-template-columns: 1fr !important; }
+            /* Editeur d'image : outils sous l'apercu au lieu d'a cote */
+            .img-editor-panel { flex-direction: column; max-width: 96vw; }
+            .img-editor-tools { width: 100% !important; }
+        }
+        /* Cibles tactiles plus grandes au doigt */
+        @media (pointer: coarse) {
+            .btn { padding: 10px 14px; font-size: 13px; }
+            .glass-input { padding-top: 8px; padding-bottom: 8px; }
+        }
+    </style>
+</head>
+
+<body class="h-screen overflow-hidden flex flex-col">
+
+    <!-- TOOLBAR -->
+    <header id="forge-toolbar" class="glass flex items-center gap-3 px-4 py-2 shrink-0">
+        <span class="pixel text-cyan-400 text-sm">BJORN&nbsp;FORGE</span>
+        <span class="text-xs text-slate-500" id="project-status">Projet : defaut</span>
+        <div class="flex-1"></div>
+        <button id="btn-new" class="btn">Nouveau</button>
+        <button id="btn-import" class="btn">Importer JSON</button>
+        <button id="btn-export-json" class="btn">Exporter JSON</button>
+        <button id="btn-export-data" class="btn">Exporter data.js</button>
+        <button id="btn-save" class="btn btn-primary">💾 Sauver</button>
+        <button id="btn-play" class="btn btn-primary">▶ Jouer</button>
+        <button id="btn-reset" class="btn btn-danger">Reset</button>
+        <input id="file-import" type="file" accept="application/json" class="hidden">
+    </header>
+
+    <div id="forge-main" class="flex flex-1 min-h-0">
+        <!-- TABS -->
+        <nav id="forge-tabs" class="glass w-40 shrink-0 flex flex-col gap-1 p-2 overflow-y-auto">
+            <button class="tab btn text-left" data-tab="rarities">Raretés</button>
+            <button class="tab btn text-left" data-tab="items">Items</button>
+            <button class="tab btn text-left" data-tab="uniques">Uniques ★</button>
+            <button class="tab btn text-left" data-tab="monsters">Monstres</button>
+            <button class="tab btn text-left" data-tab="spells">Sorts</button>
+            <button class="tab btn text-left" data-tab="bosses">Boss</button>
+            <button class="tab btn text-left" data-tab="objects">Objets</button>
+            <button class="tab btn text-left" data-tab="biomes">Biomes</button>
+            <button class="tab btn text-left" data-tab="bonuses">Bonus ★</button>
+            <button class="tab btn text-left" data-tab="statusDefs">Effets</button>
+            <button class="tab btn text-left" data-tab="environment">Environnement</button>
+            <button class="tab btn text-left" data-tab="dungeon">Donjon</button>
+            <button class="tab btn text-left" data-tab="props3d">Décor 3D</button>
+            <button class="tab btn text-left" data-tab="audio">Audio</button>
+        </nav>
+
+        <!-- ENTITY LIST -->
+        <section id="forge-list" class="w-64 shrink-0 border-r border-white/10 flex flex-col min-h-0">
+            <div class="flex gap-2 p-2 border-b border-white/10">
+                <button id="btn-add" class="btn btn-primary flex-1">+ Ajouter</button>
+                <button id="btn-dup" class="btn">Dupliquer</button>
+            </div>
+            <div id="entity-list" class="flex-1 overflow-y-auto p-2 flex flex-col gap-1"></div>
+        </section>
+
+        <!-- EDITOR -->
+        <main id="forge-editor" class="flex-1 min-h-0 overflow-y-auto p-6">
+            <div id="editor-empty" class="text-slate-500 text-sm mt-20 text-center">
+                Sélectionne un élément à gauche, ou crée-en un.
+            </div>
+            <div id="editor" class="hidden max-w-3xl mx-auto">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 id="editor-title" class="pixel text-cyan-400 text-sm"></h2>
+                    <button id="btn-delete" class="btn btn-danger hidden">Supprimer</button>
+                </div>
+                <div id="form-fields" class="flex flex-col gap-4"></div>
+                <div class="mt-6 pt-4 border-t border-white/10 flex items-center gap-2">
+                    <input id="new-field-key" class="glass-input px-2 py-1 rounded text-xs w-40" placeholder="nouveau champ">
+                    <select id="new-field-type" class="glass-input px-2 py-1 rounded text-xs">
+                        <option value="text">texte</option>
+                        <option value="number">nombre</option>
+                        <option value="boolean">booléen</option>
+                        <option value="color">couleur</option>
+                    </select>
+                    <button id="btn-add-field" class="btn">+ champ</button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- MODAL ROOT (image editor, dialogs) -->
+    <div id="modal-root"></div>
+
+    <script type="module" src="js/forge.js"></script>
+</body>
+
+</html>

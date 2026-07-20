@@ -3,3 +3,11 @@ Thumbs.db
 .vscode/
 .idea/
 *.swp
+saves/
+
+# Originaux bruts (déjà intégrés dans assets/)
+divers/
+_bjorn_backup_*/
+work/
+node_modules/
+.env

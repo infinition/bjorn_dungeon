@@ -292,7 +292,10 @@ function addNewItem() {
     } else if (currentTab === 'spells') {
         Object.assign(newItem, {
             id: 'new_spell', name: 'Nouveau Sort', damage: 10,
-            color: '#ffffff', cooldown: 1, sound: 'zap'
+            color: '#ffffff', cooldown: 1, sound: 'zap',
+            fx: { type: 'image', src: '' }, projectileSprite: { type: 'image', src: '' }, projectileFx: false,
+            projectileSpriteLayout: 'vertical', projectileSpriteRotation: { x: 0, y: 0, z: 0 }, projectileSpriteVolume: 'cross', projectileScale: 0.9, fxScale: 0.9,
+            castSound: '', impactSound: ''
         });
     } else if (currentTab === 'objects') {
         Object.assign(newItem, {

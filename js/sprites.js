@@ -1,22 +1,8 @@
-import * as THREE from 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.module.js';
+import * as THREE from 'https://unpkg.com/three@0.128.0/build/three.module.js';
+import { GameData } from './data.js';
+import { makeAnimatedSprite } from './sprite-anim.js';
 
-const textureLoader = new THREE.TextureLoader();
-
-export function loadSprite(path) {
-    const tex = textureLoader.load(path);
-    tex.magFilter = THREE.NearestFilter;
-    tex.minFilter = THREE.NearestFilter;
-    return tex;
-}
-
-export function createBillboard(texture, size = 1) {
-    const mat = new THREE.SpriteMaterial({ map: texture, color: 0xffffff });
-    const sprite = new THREE.Sprite(mat);
-    sprite.scale.set(size, size, 1);
-    return sprite;
-}
-
-// Procedural Boss Texture (Fallback)
+// Texture procedurale du boss (fallback runique, conserve le look d'origine)
 function createBossTexture() {
     const bossCanvas = document.createElement('canvas');
     bossCanvas.width = 64; bossCanvas.height = 64;
@@ -33,43 +19,68 @@ function createBossTexture() {
     bCtx.fillStyle = '#666'; bCtx.fillRect(10, 30, 4, 34);
     bCtx.fillStyle = '#4deeea'; bCtx.fillRect(6, 30, 12, 8);
     bCtx.fillStyle = '#0ff'; bCtx.font = '10px monospace'; bCtx.fillText('ᚱ', 28, 40);
-
     const tex = new THREE.CanvasTexture(bossCanvas);
     tex.magFilter = THREE.NearestFilter;
     return tex;
 }
-
 export const bossTexture = createBossTexture();
 
-export function createBoss(scene, x, z) {
-    // Try to load custom sprite, fallback to procedural
-    // For now, using procedural constant
-    const boss = createBillboard(bossTexture, 1.5);
-    boss.position.set(x, 1, z);
-    scene.add(boss);
-    return boss;
+export function createBoss(scene, x, z, d = GameData.boss) {
+    const scale = d.scale || 1.5;
+    const baseY = scale * 0.6;
+
+    let mesh, anim = null;
+    // Sprite image (chemin) ou authore (objet) -> sprite anime ; sinon -> procedural runique
+    const hasSprite = (typeof d.sprite === 'string' && d.sprite.trim()) ||
+        (d.sprite && typeof d.sprite === 'object' && (d.sprite.src || '').trim());
+    if (hasSprite) {
+        anim = makeAnimatedSprite(d.sprite, { scale, color: d.color });
+        mesh = anim.sprite;
+    } else {
+        const mat = new THREE.SpriteMaterial({ map: bossTexture, color: 0xffffff });
+        mesh = new THREE.Sprite(mat);
+        mesh.scale.set(scale, scale, 1);
+    }
+    mesh.position.set(x, baseY, z);
+    mesh.userData = {
+        isBoss: true, name: d.name,
+        hp: d.hp, maxHp: d.hp, damage: d.damage, xp: d.xp,
+        speed: d.speed || 1.3, attackRange: d.attackRange || 2.5, attackRate: d.attackRate || 0.03,
+        color: d.color || '#ffffff', baseY, phase: 0, hitFlash: 0,
+        attackSound: d.attackSound, deathSound: d.deathSound, walkSound: d.walkSound,
+        abilityTimers: {}, abilities: d.abilities || [], gold: d.gold, loot: d.loot,
+        lootChance: d.lootChance, lootRolls: d.lootRolls, enrageAt: d.enrageAt || 0.35,
+        anim, moving: false
+    };
+    scene.add(mesh);
+    return mesh;
 }
 
 export function createMob(scene, x, z, mobData) {
-    let tex;
-    if (mobData.sprite && mobData.sprite.trim() !== '') {
-        tex = loadSprite(mobData.sprite);
-    } else {
-        // Fallback procedural generation
-        const canvas = document.createElement('canvas');
-        canvas.width = 32; canvas.height = 32;
-        const ctx = canvas.getContext('2d');
-        ctx.fillStyle = mobData.color || '#ddd';
-        ctx.fillRect(8, 8, 16, 24);
-        tex = new THREE.CanvasTexture(canvas);
-        tex.magFilter = THREE.NearestFilter;
-    }
+    const scale = mobData.scale || 1;
+    const baseY = 0.5 * scale;
+    const anim = makeAnimatedSprite(mobData.sprite, { scale, color: mobData.color });
+    const mob = anim.sprite;
+    mob.position.set(x, baseY, z);
 
-    const mob = createBillboard(tex, mobData.scale || 1);
-    mob.position.set(x, 0.5 * (mobData.scale || 1), z);
-    // Store stats on the mesh for gameplay logic
-    mob.userData = { hp: mobData.hp, damage: mobData.damage, name: mobData.name, sound: mobData.sound };
-
+    mob.userData = {
+        id: mobData.id, name: mobData.name,
+        hp: mobData.hp, maxHp: mobData.hp, damage: mobData.damage, xp: mobData.xp || 10,
+        speed: mobData.speed || 1.0, attackRange: mobData.attackRange || 1.5, attackRate: mobData.attackRate || 0.02,
+        detect: mobData.detect || 13,
+        behavior: mobData.behavior || 'chaser', color: mobData.color || '#dddddd', sound: mobData.sound,
+        coward: !!mobData.coward, charger: !!mobData.charger,
+        walkSound: mobData.walkSound, attackSound: mobData.attackSound, deathSound: mobData.deathSound,
+        ranged: !!mobData.ranged || mobData.behavior === 'caster', projColor: mobData.projColor, projSpeed: mobData.projSpeed, projChance: mobData.projChance,
+        gold: mobData.gold, loot: mobData.loot, statusOnHit: mobData.statusOnHit, lootChance: mobData.lootChance,
+        status: null, tint: null,
+        baseY, scale, phase: Math.random() * Math.PI * 2,
+        hitFlash: 0, slowUntil: 0, dead: false, deathDone: false,
+        aggro: false, wanderTimer: Math.random() * 2, wanderDir: null,
+        gait: mobData.gait || (mobData.behavior === 'phaser' ? 'float' : 'walk'),
+        facing: 1, flipT: 0,
+        anim, moving: false
+    };
     scene.add(mob);
     return mob;
 }
