@@ -1,4 +1,6 @@
-<img width="254" height="255" alt="image-removebg-preview (10)" src="https://github.com/user-attachments/assets/e358b3bc-953e-4bc8-9279-c656bcb4e590" />
+<p align="center">
+  <img src=".github/bjorn_dungeon.png" alt="bjorn_dungeon icon" width="254" height="255" />
+</p>
 
 # Bjorn Dungeon
 
